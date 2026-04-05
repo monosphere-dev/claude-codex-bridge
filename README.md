@@ -19,41 +19,105 @@ Claude Code excels at deep codebase understanding, architecture, and planning. C
 1. In **Claude Code**, use `plan-for-codex` skill — explores codebase, writes self-contained plan to `docs/plans/YYYY-MM-DD-<feature>.md`
 2. In **Codex**, use `execute-claude-plan` skill — picks up the plan and implements it
 
-## Quick Install (one command)
+## Installation
+
+### Prerequisites
+
+- **Git** (for cloning the repo)
+- **[Claude Code](https://claude.com/claude-code)** installed
+- **[Codex CLI](https://github.com/openai/codex)** installed (optional, but needed for the execution side): `npm install -g @openai/codex`
+
+### Quick Install (one command)
 
 ```bash
-git clone https://github.com/<your-org>/claude-codex-bridge.git ~/.claude-codex-bridge && bash ~/.claude-codex-bridge/install.sh
+git clone https://github.com/monosphere-dev/claude-codex-bridge.git ~/.claude-codex-bridge \
+  && bash ~/.claude-codex-bridge/install.sh
 ```
 
-This installs the skills into both tools:
-- Claude Code: symlinks into `~/.claude/skills/`
-- Codex: symlinks into `~/.agents/skills/claude-codex-bridge`
+That's it. The installer handles both tools automatically.
 
-Restart either tool after install to pick up the new skills.
+**What the installer does:**
 
-## Manual Install
+1. Clones the repo to `~/.claude-codex-bridge/`
+2. Creates symlinks in `~/.claude/skills/` so Claude Code discovers the `plan-for-codex` skill
+3. Creates a symlink in `~/.agents/skills/claude-codex-bridge` so Codex discovers the `execute-claude-plan` skill
+4. Checks `~/.codex/config.toml` and warns if `multi_agent = true` isn't set (needed for parallel execution in Codex)
 
-### Claude Code
+The installer is **idempotent** — safe to re-run, replaces stale symlinks, and fails safely if a non-symlink file exists at the target (no clobbering).
+
+### Enable Codex Multi-Agent Mode
+
+If the installer warned you about missing multi-agent config, add this to `~/.codex/config.toml`:
+
+```toml
+[features]
+multi_agent = true
+```
+
+Required for `spawn_agent` — used by `execute-claude-plan` to run independent tasks in parallel.
+
+### Verify Installation
 
 ```bash
-git clone https://github.com/<your-org>/claude-codex-bridge.git ~/.claude-codex-bridge
+# Should show two symlinks
+ls -la ~/.claude/skills/
+
+# Should show claude-codex-bridge symlink
+ls -la ~/.agents/skills/
+```
+
+Then **restart Claude Code and Codex** (quit and relaunch) so they pick up the new skills.
+
+### Manual Install
+
+If you'd rather not run the script:
+
+**Claude Code:**
+```bash
+git clone https://github.com/monosphere-dev/claude-codex-bridge.git ~/.claude-codex-bridge
 mkdir -p ~/.claude/skills
 ln -s ~/.claude-codex-bridge/skills/plan-for-codex ~/.claude/skills/plan-for-codex
 ln -s ~/.claude-codex-bridge/skills/execute-claude-plan ~/.claude/skills/execute-claude-plan
 ```
 
-### Codex
-
+**Codex:**
 ```bash
 mkdir -p ~/.agents/skills
 ln -s ~/.claude-codex-bridge/skills ~/.agents/skills/claude-codex-bridge
 ```
 
-Ensure Codex multi-agent mode is enabled in `~/.codex/config.toml`:
+### Windows (PowerShell)
 
-```toml
-[features]
-multi_agent = true
+The bash installer won't work directly on Windows. Use WSL, or create junctions manually:
+
+```powershell
+git clone https://github.com/monosphere-dev/claude-codex-bridge.git "$env:USERPROFILE\.claude-codex-bridge"
+
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills"
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.agents\skills"
+
+cmd /c mklink /J "$env:USERPROFILE\.claude\skills\plan-for-codex"       "$env:USERPROFILE\.claude-codex-bridge\skills\plan-for-codex"
+cmd /c mklink /J "$env:USERPROFILE\.claude\skills\execute-claude-plan"  "$env:USERPROFILE\.claude-codex-bridge\skills\execute-claude-plan"
+cmd /c mklink /J "$env:USERPROFILE\.agents\skills\claude-codex-bridge"  "$env:USERPROFILE\.claude-codex-bridge\skills"
+```
+
+### Updating
+
+Pull new changes anytime:
+
+```bash
+cd ~/.claude-codex-bridge && git pull
+```
+
+Symlinks follow the files — no reinstall needed. Restart your tools if they're already running to reload the skills.
+
+### Uninstall
+
+```bash
+rm ~/.claude/skills/plan-for-codex
+rm ~/.claude/skills/execute-claude-plan
+rm ~/.agents/skills/claude-codex-bridge
+rm -rf ~/.claude-codex-bridge
 ```
 
 ## Usage
@@ -84,6 +148,23 @@ Codex will invoke `execute-claude-plan` automatically and:
 - Run the verification + Definition of Done checklist
 - Report results
 
+## Troubleshooting
+
+**"Skill not found" in Claude Code:**
+- Confirm `ls ~/.claude/skills/plan-for-codex/SKILL.md` resolves through the symlink
+- Restart Claude Code completely (quit, not just close the window)
+
+**"Skill not found" in Codex:**
+- Confirm `ls ~/.agents/skills/claude-codex-bridge/plan-for-codex/SKILL.md` works
+- Restart the Codex CLI
+
+**Installer fails with "file exists, not a symlink":**
+- You have a real file/directory at the target path. Remove it manually, then re-run:
+  ```bash
+  rm -rf ~/.claude/skills/plan-for-codex ~/.claude/skills/execute-claude-plan
+  bash ~/.claude-codex-bridge/install.sh
+  ```
+
 ## Plan Format
 
 Plans written by `plan-for-codex` are self-contained — Codex reads them with zero context from Claude Code's session:
@@ -95,7 +176,7 @@ Plans written by `plan-for-codex` are self-contained — Codex reads them with z
 - **Verification** — test/lint/build commands
 - **Definition of Done** — acceptance criteria
 
-See `skills/plan-for-codex/SKILL.md` for the full format spec.
+See [`skills/plan-for-codex/SKILL.md`](skills/plan-for-codex/SKILL.md) for the full format spec.
 
 ## Why Not Just Use Superpowers?
 
@@ -110,18 +191,16 @@ See `skills/plan-for-codex/SKILL.md` for the full format spec.
 
 You can use both plugins side-by-side.
 
-## Uninstall
-
-```bash
-rm ~/.claude/skills/plan-for-codex
-rm ~/.claude/skills/execute-claude-plan
-rm ~/.agents/skills/claude-codex-bridge
-rm -rf ~/.claude-codex-bridge
-```
-
 ## Team Setup
 
-Share this repo URL with your team. Each member runs the one-command install above. Updates propagate via `git pull` in `~/.claude-codex-bridge/` — no reinstall needed (symlinks follow the files).
+Share the install command with your team:
+
+```bash
+git clone https://github.com/monosphere-dev/claude-codex-bridge.git ~/.claude-codex-bridge \
+  && bash ~/.claude-codex-bridge/install.sh
+```
+
+Updates propagate via `git pull` in `~/.claude-codex-bridge/` — no reinstall needed.
 
 ## License
 
