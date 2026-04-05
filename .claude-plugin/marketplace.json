@@ -1,0 +1,16 @@
+{
+  "name": "claude-codex-bridge",
+  "owner": {
+    "name": "Mark Diesta"
+  },
+  "plugins": [
+    {
+      "name": "claude-codex-bridge",
+      "source": ".",
+      "description": "Cross-tool handoff: Claude Code plans, Codex implements. Ships plan-for-codex and execute-claude-plan skills.",
+      "version": "1.0.0",
+      "category": "workflow",
+      "tags": ["planning", "codex", "workflow", "skills"]
+    }
+  ]
+}

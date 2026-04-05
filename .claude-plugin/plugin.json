@@ -1,0 +1,10 @@
+{
+  "name": "claude-codex-bridge",
+  "description": "Cross-tool handoff: Claude Code plans, Codex implements. Bridges planning and execution across both tools.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mark Diesta"
+  },
+  "license": "MIT",
+  "skills": "./skills/"
+}
